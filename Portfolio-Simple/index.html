@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Graph Visualization</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #container { width: 100vw; height: 100vh; position: absolute; top: 0; left: 0; }
+        #nav-bar { 
+            position: fixed; 
+            top: 0; 
+            left: 0; 
+            width: 100%; 
+            background-color: rgba(0, 0, 0, 0.8); 
+            color: white; 
+            padding: 10px; 
+            text-align: center;
+            z-index: 1000;
+        }
+        .nav-button {
+            background: none;
+            border: none;
+            color: white;
+            font-size: 16px;
+            margin: 0 10px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="nav-bar"></div>
+    <div id="container"></div>
+    <script type="module" src="./src/graph.js"></script>
+</body>
+</html>
