@@ -7,10 +7,9 @@ let nodes = [];
 let edges = [];
 let zoomTarget = null;
 let zoomProgress = 0;
-let lastClickedNode = null;
 
 const zoomDistance = 50;
-const minNodeDistance = 20; // Minimum distance to prevent overlap
+const sphereRadius = 130; // Radius of the sphere where nodes are placed
 
 document.addEventListener("DOMContentLoaded", () => {
     init();
@@ -37,7 +36,7 @@ function init() {
     controls.enableDamping = true;
     controls.dampingFactor = 0.05;
     
-    // Generate Graph
+    // Generate Graph with evenly spaced nodes
     generateGraph();
     
     window.addEventListener('resize', onWindowResize);
@@ -46,35 +45,42 @@ function init() {
 
 function generateGraph() {
     const numNodes = 10;
-    const radius = 130;
+    const goldenAngle = Math.PI * (3 - Math.sqrt(5)); // Approximately 2.399963
     
     for (let i = 0; i < numNodes; i++) {
-        let positionValid = false;
-        let x, y, z;
+        // Fibonacci sphere distribution calculations:
+        let y = 1 - (i / (numNodes - 1)) * 2;  // y goes from 1 to -1
+        let radiusAtY = Math.sqrt(1 - y * y);   // Radius at this y
+        let theta = goldenAngle * i;            // Angle increment
         
-        while (!positionValid) {
-            let theta = Math.acos(2 * Math.random() - 1);
-            let phi = Math.random() * Math.PI * 2;
-            x = radius * Math.sin(theta) * Math.cos(phi);
-            y = radius * Math.sin(theta) * Math.sin(phi);
-            z = radius * Math.cos(theta);
-            
-            positionValid = nodes.every(node => 
-                node.position.distanceTo(new THREE.Vector3(x, y, z)) > minNodeDistance
-            );
-        }
+        let x = Math.cos(theta) * radiusAtY;
+        let z = Math.sin(theta) * radiusAtY;
         
+        // Scale to the desired sphere radius
+        x *= sphereRadius;
+        y *= sphereRadius;
+        z *= sphereRadius;
+        
+        // Create the node element
         let div = document.createElement('div');
         div.className = 'node';
-        div.innerHTML = `Node ${i+1}`;
+        div.innerHTML = `Node ${i + 1}`;
         div.style.padding = '10px';
         div.style.backgroundColor = 'rgba(255,255,255,0.8)';
         div.style.border = '1px solid black';
         div.style.textAlign = 'center';
-        div.addEventListener('click', () => zoomToNode(obj));
+        div.style.cursor = 'pointer';
         
+        // Create the CSS3D object and set its position
         let obj = new CSS3DObject(div);
         obj.position.set(x, y, z);
+        
+        // Add event listener to focus this node on click
+        div.addEventListener('click', (event) => {
+            event.stopPropagation();
+            zoomToNode(obj);
+        });
+        
         scene.add(obj);
         nodes.push(obj);
     }
@@ -96,27 +102,12 @@ function generateEdges() {
 }
 
 function zoomToNode(node) {
-    if (lastClickedNode) {
-        let connectingEdge = edges.find(edge => 
-            (edge.geometry.attributes.position.array[0] === lastClickedNode.position.x &&
-             edge.geometry.attributes.position.array[1] === lastClickedNode.position.y &&
-             edge.geometry.attributes.position.array[2] === lastClickedNode.position.z &&
-             edge.geometry.attributes.position.array[3] === node.position.x &&
-             edge.geometry.attributes.position.array[4] === node.position.y &&
-             edge.geometry.attributes.position.array[5] === node.position.z)
-        );
-
-        if (connectingEdge) {
-            let midPoint = new THREE.Vector3().lerpVectors(lastClickedNode.position, node.position, 0.5);
-            zoomTarget = midPoint;
-        } else {
-            zoomTarget = node.position.clone().addScaledVector(camera.position.clone().sub(node.position).normalize(), -zoomDistance);
-        }
-    } else {
-        zoomTarget = node.position.clone().addScaledVector(camera.position.clone().sub(node.position).normalize(), -zoomDistance);
-    }
+    // Set the OrbitControls target to the node's position so it becomes the focus.
+    controls.target.copy(node.position);
     
-    lastClickedNode = node;
+    // Calculate a new camera position at a fixed distance from the node.
+    let direction = camera.position.clone().sub(node.position).normalize();
+    zoomTarget = node.position.clone().add(direction.multiplyScalar(zoomDistance));
     zoomProgress = 0;
 }
 
@@ -139,14 +130,16 @@ function onWindowResize() {
 function animate() {
     requestAnimationFrame(animate);
     
+    // Make nodes face the camera.
     nodes.forEach(node => {
         node.lookAt(camera.position);
     });
     
+    // Smoothly move the camera toward the zoom target.
     if (zoomTarget) {
         zoomProgress += 0.05;
         camera.position.lerp(zoomTarget, zoomProgress);
-        camera.lookAt(zoomTarget);
+        camera.lookAt(controls.target);
         if (zoomProgress >= 1) {
             zoomTarget = null;
         }
