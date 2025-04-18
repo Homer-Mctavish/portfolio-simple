@@ -2,6 +2,70 @@
 <style>
 
     </style>
+
+    <script>
+      var canvas = document.getElementById("myCanvas");
+var ctx;
+var linkText = "https://github.com/Homer-Mctavish/projects/blob/main/Deep%20Learning%20Project/Tensorflow%20Project.ipynb";
+var linkX = 5;
+var linkY = 15;
+var linkHeight = 10;
+var linkWidth;
+var inLink = false;
+
+// draw the balls on the canvas
+function draw() {
+  canvas = document.getElementById("myCanvas");
+  // check if supported
+  if (canvas.getContext) {
+
+    ctx = canvas.getContext("2d");
+
+    //clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+    //draw the link
+    ctx.font = '10px sans-serif';
+    ctx.fillStyle = "#0000ff";
+    ctx.fillText(linkText, linkX, linkY);
+    linkWidth = ctx.measureText(linkText).width;
+
+    //add mouse listeners
+    canvas.addEventListener("mousemove", on_mousemove, false);
+    canvas.addEventListener("click", on_click, false);
+
+  }
+}
+
+//check if the mouse is over the link and change cursor style
+function on_mousemove(ev) {
+  var x, y;
+
+  // Get the mouse position relative to the canvas element.
+  if (ev.layerX || ev.layerX == 0) { //for firefox
+    x = ev.layerX;
+    y = ev.layerY;
+  }
+  x -= canvas.offsetLeft;
+  y -= canvas.offsetTop;
+
+  //is the mouse over the link?
+  if (x >= linkX && x <= (linkX + linkWidth) && y <= linkY && y >= (linkY - linkHeight)) {
+    document.body.style.cursor = "pointer";
+    inLink = true;
+  } else {
+    document.body.style.cursor = "";
+    inLink = false;
+  }
+}
+
+//if the link has been clicked, go to link
+function on_click(e) {
+  if (inLink) {
+    window.location = linkText;
+  }
+}
+    </script>
     <div class="container">
       <div class="card3">
 DNN Vision Model

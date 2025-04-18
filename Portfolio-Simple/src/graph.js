@@ -26,6 +26,17 @@ const nodeHTMLContents = [
         // Add additional paths as needed…
       ];
 
+const urlLIst =["https://github.com/Homer-Mctavish/projects/blob/main/Deep%20Learning%20Project/Tensorflow%20Project.ipynb",
+  "https://github.com/Homer-Mctavish/phoenix-liveview-blog",
+  "https://github.com/Homer-Mctavish/polars-express",
+  "https://github.com/Homer-Mctavish/FASTAPI-SpaCy-API",
+  "https://github.com/Homer-Mctavish/3jspencilshader",
+  "https://github.com/Homer-Mctavish/Voter-HMM-Simulation",
+  "https://github.com/Homer-Mctavish/DatingApp",
+  "https://github.com/Homer-Mctavish/Realm-Sheet-Bot",
+  "https://github.com/Homer-Mctavish/MissMambaChatbot"
+];
+
 let camera, scene, renderer, controls;
 let nodes = [];
 let nodePositions = [];
@@ -33,6 +44,11 @@ let edges = [];
 const sphereRadius = 130; // Radius of the sphere where nodes are placed
 let initialFov, currentZoomFactor = 1; // currentZoomFactor is 1 at start
 const targetNodeIndex = 5; // Change this to the index of the node you want to focus on initially
+const mouse = new THREE.Vector2(); 
+var raycaster = new THREE.Raycaster();
+
+
+
 
 document.addEventListener("DOMContentLoaded", async () => {
     init();
@@ -40,9 +56,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     addButtonClickEvent(nodes, faceNode); // Set up button events
     animate();
 });
-
-
-
 
 function init() {
     const container = document.getElementById('container');
@@ -101,6 +114,7 @@ function setZoom(newZoomFactor) {
   adjustTextScale(newZoomFactor);
 }
 
+
   function createNode(nodeNumber, position) {
     const div = document.createElement('div');
     div.className = 'node';
@@ -136,22 +150,6 @@ function setZoom(newZoomFactor) {
     }
   }
 
-  function animateZoom() {
-    // Check if the FOV has reached the target
-    if (Math.abs(camera.fov - targetFov) > 0.1) {
-        // Interpolate FOV smoothly
-        camera.fov += (targetFov - camera.fov) * zoomSpeed;
-        camera.updateProjectionMatrix();
-        
-        // Continue animation on the next frame
-        requestAnimationFrame(animateZoom);
-    } else {
-        // Once we reach the target FOV, set it exactly
-        camera.fov = targetFov;
-        camera.updateProjectionMatrix();
-    }
-}
-
 
 
 function generateGraph() {
@@ -172,18 +170,13 @@ function generateGraph() {
   let pos = new THREE.Vector3(x, y * sphereRadius, z);
       
       const node = createNode(i + 1, pos);
+      node.userData = {URL: urlLIst[i]};
       scene.add(node);
       nodes.push(node);
   }
   
   generateEdges();
 }
-
-
-
-
-
-
 
 function faceNode(index) {
   // Check for a valid index.
@@ -213,6 +206,20 @@ function onWindowResize() {
     renderer.setSize(window.innerWidth, window.innerHeight);
 }
 
+function onDocumentMouseDown(event) {
+  event.preventDefault();
+  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+  raycaster.setFromCamera(mouse, camera);
+  var intersects = raycaster.intersectObjects(scene.children);
+  if (intersects.length > 0) {
+      var clickedObject = intersects.object;
+      if (clickedObject.userData.URL) {
+          window.open(clickedObject.userData.URL);
+      }
+  }
+}
+
 function animate() {
     requestAnimationFrame(animate);
   
@@ -220,7 +227,10 @@ function animate() {
     nodes.forEach((node) => {
       node.lookAt(camera.position);
     });
+    document.addEventListener('mousedown', onDocumentMouseDown, true);
+
   
     controls.update();
     renderer.render(scene, camera);
+
   }
