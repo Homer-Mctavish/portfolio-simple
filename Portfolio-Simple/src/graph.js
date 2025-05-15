@@ -26,7 +26,7 @@ const nodeHTMLContents = [
         // Add additional paths as needed…
       ];
 
-const urlLIst =["https://github.com/Homer-Mctavish/projects/blob/main/Deep%20Learning%20Project/Tensorflow%20Project.ipynb",
+const urlList =["https://github.com/Homer-Mctavish/projects/blob/main/Deep%20Learning%20Project/Tensorflow%20Project.ipynb",
   "https://github.com/Homer-Mctavish/phoenix-liveview-blog",
   "https://github.com/Homer-Mctavish/polars-express",
   "https://github.com/Homer-Mctavish/FASTAPI-SpaCy-API",
@@ -36,6 +36,7 @@ const urlLIst =["https://github.com/Homer-Mctavish/projects/blob/main/Deep%20Lea
   "https://github.com/Homer-Mctavish/Realm-Sheet-Bot",
   "https://github.com/Homer-Mctavish/MissMambaChatbot"
 ];
+
 
 let camera, scene, renderer, controls;
 let nodes = [];
@@ -49,6 +50,21 @@ var raycaster = new THREE.Raycaster();
 
 
 
+function highlightCSS3DObjects() {
+  const color='red';
+  scene.traverse(o => {
+    if (o instanceof CSS3DObject) {
+      // Use `outline` so you don't change layout
+      o.element.style.outline        = `2px solid ${color}`;
+      o.element.style.outlineOffset  = '-2px';
+      // Ensure it’s on top
+      o.element.style.zIndex         = '999';
+      // And make sure pointer events are on
+      o.element.style.pointerEvents  = 'auto';
+    }
+  });
+  console.log("fb")
+}
 
 document.addEventListener("DOMContentLoaded", async () => {
     init();
@@ -56,6 +72,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     addButtonClickEvent(nodes, faceNode); // Set up button events
     animate();
 });
+
+
+
+// then in init(), after controls etc:
 
 function init() {
     const container = document.getElementById('container');
@@ -82,11 +102,12 @@ function init() {
     camera.lookAt(nodePositions[targetNodeIndex]);
   }
     controls.enableDamping = true;
+    controls.enableZoom = false;
     controls.dampingFactor = 0.05; 
     window.addEventListener('resize', onWindowResize);
-    document.addEventListener('wheel', onScroll);
-    adjustTextScale(currentZoomFactor);
     
+    window.addEventListener('wheel', onScroll, { passive: false });
+    adjustTextScale(currentZoomFactor);
 }
   
 /**
@@ -107,37 +128,50 @@ function adjustTextScale(zoomFactor) {
  * Call this function when the zoom factor changes.
  * @param {number} newZoomFactor - New zoom factor (e.g., 0.5 to zoom in by 50%).
  */
-function setZoom(newZoomFactor) {
-  currentZoomFactor = newZoomFactor;
-  camera.fov = initialFov * newZoomFactor;
-  camera.updateProjectionMatrix();
-  adjustTextScale(newZoomFactor);
+
+function createNode(nodeNumber, position) {
+  // 1) Build the DIV
+  const div = document.createElement('div');
+  div.className = 'node';
+  div.style.width = '150px';
+  div.style.height = '50px';
+  div.style.pointerEvents = 'auto';
+
+  // 2) Inject your raw HTML
+    // div.dataset.url = urlList[nodeNumber - 1];
+
+  const content = nodeHTMLContents[(nodeNumber - 1) % nodeHTMLContents.length];
+    const url     = urlList[nodeNumber - 1] || '#';
+  div.innerHTML = `
+    <a href="${url}" target="_blank" rel="noopener noreferrer" style="display:block; width:100%; height:100%; text-decoration:none; color:inherit;">
+      ${content}
+    </a>
+  `;
+
+  // 4) Listen for clicks on the DIV itself
+  div.addEventListener('click', e => {
+    e.stopPropagation();  // don’t let CSS3DRenderer swallow it
+    // 4a) If your content has an <a>, just open that:
+    const a = div.querySelector('a[href]');
+    if (a) {
+      window.open(a.href, '_blank');
+      return;
+    }
+    // 4b) Otherwise, use your stored data-url
+    if (div.dataset.url) {
+      window.open(div.dataset.url, '_blank');
+    }
+  });
+
+  // 5) Wrap in CSS3DObject, position, name, etc.
+  const nodeObject = new CSS3DObject(div);
+  nodeObject.position.copy(position);
+  nodeObject.name = `node-${nodeNumber}`;
+  return nodeObject;
 }
 
 
-  function createNode(nodeNumber, position) {
-    const div = document.createElement('div');
-    div.className = 'node';
-    
-    // Cycle through the imported HTML content if there are more nodes than content files.
-    const content = nodeHTMLContents[(nodeNumber - 1) % nodeHTMLContents.length];
-    
-    // Combine the node number and the custom HTML content.
-    div.innerHTML = `${content}`;
-    
-    // Basic styling (can be moved to CSS)
 
-
-
-    div.style.width = '100px';
-    div.style.height = '70px';
-    
-    // Wrap in a CSS3DObject and set its position.
-    const nodeObject = new CSS3DObject(div);
-    nodeObject.position.copy(position);
-    return nodeObject;
-  }
-  
   function generateEdges() {
     const material = new THREE.LineBasicMaterial({ color: 0x0000ff });
     for (let i = 0; i < nodes.length; i++) {
@@ -170,7 +204,6 @@ function generateGraph() {
   let pos = new THREE.Vector3(x, y * sphereRadius, z);
       
       const node = createNode(i + 1, pos);
-      node.userData = {URL: urlLIst[i]};
       scene.add(node);
       nodes.push(node);
   }
@@ -207,18 +240,61 @@ function onWindowResize() {
 }
 
 function onDocumentMouseDown(event) {
-  event.preventDefault();
-  mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
-  mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
-  raycaster.setFromCamera(mouse, camera);
-  var intersects = raycaster.intersectObjects(scene.children);
-  if (intersects.length > 0) {
-      var clickedObject = intersects.object;
-      if (clickedObject.userData.URL) {
-          window.open(clickedObject.userData.URL);
-      }
+  // 1) Get raw mouse coords
+  const x = event.clientX, y = event.clientY;
+  console.log('MouseDown at', x, y);
+
+  // 2) Find the actual DOM element under the cursor
+  const clickedEl = document.elementFromPoint(x, y);
+  console.log('elementFromPoint →', clickedEl);
+
+  // 3) Walk up to the nearest .node container
+  const nodeDiv = clickedEl && clickedEl.closest('.node');
+  if (!nodeDiv) {
+    console.log('Clicked outside any .node');
+    return;
   }
+  
+  console.log('Clicked inside node:', nodeDiv);
+
+  // 4) Find all <a> tags anywhere inside that node
+  const links = Array.from(nodeDiv.querySelectorAll('a[href]'));
+  if (links.length === 0) {
+    console.log('No <a> links found in this node');
+    return;
+  }
+
+  // 5) Log each link href
+  links.forEach((a, idx) => {
+    console.log(`Link #${idx + 1}:`, a.href);
+  });
+
+  // 6) Open the first link (optional)
+  const firstLink = links[0];
+  window.open(firstLink.href, '_blank');
 }
+
+
+
+
+function printAllCSS3DObjects() {
+  console.log('Listing all CSS3DObjects in scene:');
+  scene.traverse(obj => {
+    if (obj instanceof CSS3DObject) {
+      console.log(obj);
+    }
+  });
+}
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'p' || e.key === 'P') printAllCSS3DObjects();
+});
+
+
+window.addEventListener('keydown', e => {
+  if (e.key === 'w' || e.key === 'W') highlightCSS3DObjects();
+});
+
 
 function animate() {
     requestAnimationFrame(animate);
@@ -227,9 +303,10 @@ function animate() {
     nodes.forEach((node) => {
       node.lookAt(camera.position);
     });
+
     document.addEventListener('mousedown', onDocumentMouseDown, true);
 
-  
+    
     controls.update();
     renderer.render(scene, camera);
 

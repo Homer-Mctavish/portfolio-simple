@@ -131,3 +131,11 @@ body { margin: 0; overflow: hidden; }
     margin: 0 10px;
     cursor: pointer;
 }
+
+/* in your CSS */
+.css3d-renderer {
+  pointer-events: none;    /* canvas container doesn’t grab clicks */
+}
+.node {
+  pointer-events: auto;    /* but each node div does */
+}
